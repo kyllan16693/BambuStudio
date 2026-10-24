@@ -764,7 +764,27 @@ if (UNIX AND NOT APPLE)
     )
 endif ()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND SLIC3R_GUI_SOURCES GUI/AppImageUpdate.cpp Utils/AppImageUpdater.cpp Utils/AppImageUpdater.hpp)
+endif()
+
 add_library(libslic3r_gui STATIC ${SLIC3R_GUI_SOURCES})
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(_update_repository "")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+        set(_update_repository "kyllan16693/BambuStudio")
+    endif()
+    set(BAMBUSTUDIO_UPDATE_REPOSITORY "${_update_repository}" CACHE STRING "GitHub repository for AppImage updates; empty disables")
+    set(BAMBUSTUDIO_UPDATE_ASSET "BambuStudio_linux-x86_64.AppImage" CACHE STRING "Exact release asset for this build")
+    if (NOT BAMBUSTUDIO_UPDATE_REPOSITORY MATCHES "^([A-Za-z0-9_-]+/[A-Za-z0-9_.-]+)?$" OR
+        NOT BAMBUSTUDIO_UPDATE_ASSET MATCHES "^[A-Za-z0-9_.-]+\\.AppImage$")
+        message(FATAL_ERROR "Invalid AppImage update repository or asset")
+    endif()
+    target_compile_definitions(libslic3r_gui PRIVATE
+        BAMBUSTUDIO_UPDATE_REPOSITORY="${BAMBUSTUDIO_UPDATE_REPOSITORY}"
+        BAMBUSTUDIO_UPDATE_ASSET="${BAMBUSTUDIO_UPDATE_ASSET}")
+endif()
 
 if (TARGET device_page_build)
     add_dependencies(libslic3r_gui device_page_build)

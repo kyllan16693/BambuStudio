@@ -1,6 +1,7 @@
 #ifndef slic3r_GUI_App_hpp_
 #define slic3r_GUI_App_hpp_
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -568,6 +569,12 @@ public:
 
     void            check_update(bool show_tips, int by_user);
     void            check_new_version(bool show_tips = false, int by_user = 0);
+#ifdef __linux__
+    bool            check_appimage_update(bool show_tips);
+    void            restart_updated_appimage();
+    std::atomic<bool> m_appimage_check_in_progress{false};
+    std::string     m_appimage_restart_path;
+#endif
     void            check_cert();
     void            post_device_region();
     bool            process_network_msg(std::string dev_id, std::string msg);
