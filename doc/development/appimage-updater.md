@@ -18,7 +18,8 @@ image over the installed path. Linux keeps the running process and mount on
 the old inode. **Restart now** closes normally, including existing save prompts,
 and starts the new image after the old process exits. Choosing **No**, or
 cancelling a save prompt, leaves the installed update available for the next
-launch. The updater does not reopen unsaved work automatically; save the project
+launch. Checking again offers a restart instead of downloading the same update
+again and replacing the backup. The updater does not reopen unsaved work automatically; save the project
 before restarting. A concurrent update or a changed installation is rejected.
 
 ## Build and release

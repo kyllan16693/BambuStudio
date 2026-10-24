@@ -12,6 +12,19 @@
 
 namespace Slic3r::GUI {
 namespace {
+void prompt_appimage_restart(GUI_App &app, const std::string &image)
+{
+    const int choice = wxMessageBox(
+        _L("The update is installed. Restart Bambu Studio now? You will be asked to save any unsaved changes.") +
+        "\n\n" + _L("The previous version is saved beside the AppImage with a .previous suffix."),
+        _L("Update ready"), wxYES_NO | wxICON_INFORMATION, app.mainframe);
+    if (choice == wxYES) {
+        app.m_appimage_restart_path = image;
+        // A deferred save retains the request; an explicit veto clears it.
+        app.mainframe->Close();
+    }
+}
+
 bool install_appimage(wxWindow *parent, const std::string &image, const AppImageUpdater::Release &release)
 {
     wxProgressDialog progress(_L("Update Bambu Studio"), _L("Downloading and verifying the update…"),
@@ -52,6 +65,10 @@ bool GUI_App::check_appimage_update(bool show_tips)
     const std::string asset = BAMBUSTUDIO_UPDATE_ASSET;
     const std::string image = AppImageUpdater::current_appimage();
     if (repository.empty() || image.empty()) return false;
+    if (!m_appimage_installed_path.empty()) {
+        if (show_tips) prompt_appimage_restart(*this, m_appimage_installed_path);
+        return true;
+    }
     if (m_appimage_check_in_progress.exchange(true)) return true;
     const bool include_prereleases = app_config->get("enable_beta_version_update") == "true";
     // No app/cloud authorization headers are needed for public release metadata.
@@ -76,16 +93,8 @@ bool GUI_App::check_appimage_update(bool show_tips)
                     if (show_tips) dialog.m_button_skip_version->Hide();
                     if (dialog.ShowModal() != wxID_YES) return;
                     if (!install_appimage(mainframe, image, *release)) return;
-                    const int choice = wxMessageBox(
-                        _L("The update is installed. Restart Bambu Studio now? You will be asked to save any unsaved changes.") +
-                        "\n\n" + _L("The previous version is saved beside the AppImage with a .previous suffix."),
-                        _L("Update ready"), wxYES_NO | wxICON_INFORMATION, mainframe);
-                    if (choice == wxYES) {
-                        m_appimage_restart_path = image;
-                        // Normal close preserves project/preset save prompts. A veto
-                        // leaves the running version usable and the update on disk.
-                        mainframe->Close();
-                    }
+                    m_appimage_installed_path = image;
+                    prompt_appimage_restart(*this, image);
                 });
             } catch (const std::exception &e) {
                 const std::string message = e.what();

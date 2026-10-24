@@ -574,6 +574,7 @@ public:
     void            restart_updated_appimage();
     std::atomic<bool> m_appimage_check_in_progress{false};
     std::string     m_appimage_restart_path;
+    std::string     m_appimage_installed_path;
 #endif
     void            cancel_update_restart() {
 #ifdef __linux__
