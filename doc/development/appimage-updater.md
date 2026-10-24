@@ -23,9 +23,21 @@ before restarting. A concurrent update or a changed installation is rejected.
 
 ## Build and release
 
-The **Linux in-app updater** workflow runs the focused tests on branch pushes.
-Run it manually on the feature branch to build the full Ubuntu 22.04 x86-64
-AppImage as a downloadable Actions artifact. It does not publish a release.
+On Ubuntu 22.04, build with the upstream dependencies and scripts:
+
+```sh
+sudo apt-get install -y libgtk-3-dev
+sudo ./BuildLinux.sh -ur
+./BuildLinux.sh -dsir
+cp build/BambuStudio_ubu64.AppImage build/BambuStudio_linux-x86_64.AppImage
+```
+
+An optional **Linux in-app updater** Actions workflow is provided as
+`doc/development/appimage-updater-workflow.yml`. To enable it, copy the template
+to `.github/workflows/appimage-updater.yml` and push with GitHub credentials that
+have workflow permission. It runs focused tests on feature-branch pushes; manual
+runs also build an Ubuntu 22.04 x86-64 AppImage as a downloadable artifact. It
+does not publish a release.
 
 For subsequent updates, build from this fork, increment the four-component
 `SLIC3R_VERSION` in `version.inc`, and create a GitHub release with a matching tag
