@@ -575,6 +575,11 @@ public:
     std::atomic<bool> m_appimage_check_in_progress{false};
     std::string     m_appimage_restart_path;
 #endif
+    void            cancel_update_restart() {
+#ifdef __linux__
+        m_appimage_restart_path.clear();
+#endif
+    }
     void            check_cert();
     void            post_device_region();
     bool            process_network_msg(std::string dev_id, std::string msg);

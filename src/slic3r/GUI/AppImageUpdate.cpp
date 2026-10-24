@@ -55,8 +55,7 @@ bool GUI_App::check_appimage_update(bool show_tips)
     if (m_appimage_check_in_progress.exchange(true)) return true;
     const bool include_prereleases = app_config->get("enable_beta_version_update") == "true";
     // No app/cloud authorization headers are needed for public release metadata.
-    auto http = Http::get("https://api.github.com/repos/" + repository + "/releases?per_page=100");
-    for (const auto &header : Http::get_extra_headers()) http.remove_header(header.first);
+    auto http = Http::get("https://api.github.com/repos/" + repository + "/releases?per_page=100", false);
     http.header("Accept", "application/vnd.github+json")
         .header("User-Agent", "BambuStudio-AppImage-Updater")
         .timeout_connect(TIMEOUT_CONNECT).timeout_max(TIMEOUT_RESPONSE)
@@ -72,12 +71,8 @@ bool GUI_App::check_appimage_update(bool show_tips)
                     if (!show_tips && app_config->get("app", "skip_version") == release->version) return;
                     version_info.version_str = release->version;
                     UpdateVersionDialog dialog(mainframe);
-                    dialog.update_version_info(wxString::FromUTF8(release->notes), wxString::FromUTF8(release->version));
-                    dialog.m_text_up_info->SetLabel(wxString::Format(_L("Install version %s without leaving Bambu Studio."), wxString::FromUTF8(release->version)));
+                    dialog.update_version_info(wxString::FromUTF8(release->notes), wxString::FromUTF8(release->version), true);
                     dialog.m_link_open_in_browser->SetURL("https://github.com/" + repository + "/releases");
-                    dialog.m_button_download->SetLabel(_L("Install update"));
-                    dialog.m_button_download->SetMinSize(dialog.FromDIP(wxSize(120, 24)));
-                    dialog.Layout();
                     if (show_tips) dialog.m_button_skip_version->Hide();
                     if (dialog.ShowModal() != wxID_YES) return;
                     if (!install_appimage(mainframe, image, *release)) return;
@@ -89,7 +84,7 @@ bool GUI_App::check_appimage_update(bool show_tips)
                         m_appimage_restart_path = image;
                         // Normal close preserves project/preset save prompts. A veto
                         // leaves the running version usable and the update on disk.
-                        if (!mainframe->Close()) m_appimage_restart_path.clear();
+                        mainframe->Close();
                     }
                 });
             } catch (const std::exception &e) {
@@ -115,13 +110,10 @@ void GUI_App::restart_updated_appimage()
     if (m_appimage_restart_path.empty()) return;
     // Pass paths as argv, never interpolate them into shell code. Wait for this
     // process to exit so the single-instance guard accepts the restarted app.
-    const std::string pid = std::to_string(wxGetProcessId());
-    const char *script =
-        "i=0; while kill -0 \"$1\" 2>/dev/null; do "
-        "i=$((i+1)); [ \"$i\" -lt 120 ] || exit 1; sleep 1; done; "
-        "unset APPIMAGE APPDIR ARGV0 OWD LD_LIBRARY_PATH LD_PRELOAD; "
-        "exec \"$2\"";
-    const char *arguments[] = {"/bin/sh", "-c", script, "bambustudio-restart", pid.c_str(), m_appimage_restart_path.c_str(), nullptr};
+    const wxString pid = wxString::Format("%ld", wxGetProcessId());
+    const wxString script = wxString::FromUTF8(AppImageUpdater::restart_script());
+    const wxString image = wxString::FromUTF8(m_appimage_restart_path);
+    const wxChar *arguments[] = {wxT("/bin/sh"), wxT("-c"), script.c_str(), wxT("bambustudio-restart"), pid.c_str(), image.c_str(), nullptr};
     if (wxExecute(arguments, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) == 0)
         wxLogError("Could not schedule Bambu Studio restart; launch the updated AppImage manually.");
 }

@@ -69,7 +69,8 @@ ctest --test-dir build/updater-tests --output-on-failure
 The suite covers version/channel selection, malformed and untrusted metadata,
 size limits, truncated/corrupted/wrong-architecture downloads, cleanup,
 concurrent installs, installation changes, symlink handling, repeated backups,
-and preservation of the old inode during replacement. The optional
+preservation of the old inode during replacement, and restart waiting/environment/
+filename handling. The optional
 `appimage_download_smoke` target exercises real HTTPS streaming into a disposable
 fixture supplied by the caller; it never launches the downloaded image.
 

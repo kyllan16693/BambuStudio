@@ -23,6 +23,8 @@ std::optional<Release> select_release(const std::string &json, const std::string
                                      const std::string &asset, const std::string &current_version,
                                      bool include_prereleases);
 std::string current_appimage();
+// Invoked as /bin/sh -c <script> name <old-pid> <absolute-AppImage-path>.
+const char *restart_script();
 
 // Stages beside the installed image, then verifies and atomically replaces it.
 // Until commit succeeds the installed image is untouched. Destruction removes

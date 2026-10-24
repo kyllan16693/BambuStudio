@@ -109,6 +109,15 @@ std::optional<Release> select_release(const std::string &body, const std::string
     return best;
 }
 
+const char *restart_script()
+{
+    return R"(i=0; while kill -0 "$1" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 120 ] || exit 1; sleep 1
+    done
+    unset APPIMAGE APPDIR ARGV0 OWD LD_LIBRARY_PATH LD_PRELOAD
+    exec "$2")";
+}
+
 std::string current_appimage()
 {
     const char *value = std::getenv("APPIMAGE");
@@ -151,7 +160,8 @@ StagedUpdate::StagedUpdate(const std::string &image, const Release &release) : i
     if (impl->original_fd < 0) system_error("Open installed AppImage");
     if (fstat(impl->original_fd, &impl->original) != 0) system_error("Inspect installed AppImage");
     if (!S_ISREG(impl->original.st_mode) || impl->original.st_uid != geteuid() ||
-        (impl->original.st_mode & (S_ISUID | S_ISGID)) || access(image.c_str(), W_OK) != 0)
+        (impl->original.st_mode & (S_ISUID | S_ISGID)) || !(impl->original.st_mode & S_IWUSR) ||
+        access(image.c_str(), W_OK) != 0)
         throw std::runtime_error("The installed AppImage must be a writable file owned by you");
     validate_image(impl->original_fd);
     if (flock(impl->original_fd, LOCK_EX | LOCK_NB) != 0)

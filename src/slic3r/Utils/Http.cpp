@@ -469,7 +469,8 @@ void Http::priv::http_perform()
 	}
 }
 
-Http::Http(const std::string &url) : p(new priv(url)) {
+Http::Http(const std::string &url, bool use_extra_headers) : p(new priv(url)) {
+    if (!use_extra_headers) return;
 
     std::lock_guard<std::mutex> l(g_mutex);
 	for (auto it = extra_headers.begin(); it != extra_headers.end(); it++)
@@ -699,9 +700,9 @@ void Http::cancel()
 	if (p) { p->cancel = true; }
 }
 
-Http Http::get(std::string url)
+Http Http::get(std::string url, bool use_extra_headers)
 {
-    return Http{std::move(url)};
+    return Http{std::move(url), use_extra_headers};
 }
 
 Http Http::post(std::string url)

@@ -8,6 +8,10 @@
 #include <fstream>
 #include <iterator>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <chrono>
+#include <thread>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -199,6 +203,10 @@ TEST_CASE("Concurrent updates and installation changes cannot overwrite each oth
 TEST_CASE("Symlinks and unsafe backup paths are rejected")
 {
     Fixture f;
+    SECTION("Read-only installation") {
+        chmod(f.image.c_str(), 0555);
+        REQUIRE_THROWS(StagedUpdate(f.image.string(), release_for(f.new_bytes)));
+    }
     SECTION("Symlink installation") {
         const auto alias = f.dir / "alias.AppImage";
         fs::create_symlink(f.image, alias);
@@ -244,4 +252,45 @@ TEST_CASE("Download cancellation and forbidden protocols leave no partial instal
     REQUIRE_THROWS(download_and_install(f.image.string(), release, cancel, percent));
     REQUIRE(Fixture::read(f.image) == f.old_bytes);
     REQUIRE(f.no_staging());
+}
+
+TEST_CASE("Restart waits for exit, clears AppImage environment and treats the path literally")
+{
+    Fixture f;
+    const auto launcher = f.dir / "app ' $(touch INJECTED) é.AppImage";
+    Fixture::write(launcher, R"(#!/bin/sh
+if [ -n "${APPIMAGE+x}${APPDIR+x}${LD_LIBRARY_PATH+x}${LD_PRELOAD+x}" ]; then exit 3; fi
+printf started > "$0.started"
+)");
+    chmod(launcher.c_str(), 0755);
+    const pid_t old_app = fork();
+    REQUIRE(old_app >= 0);
+    if (old_app == 0) { pause(); _exit(0); }
+    const pid_t helper = fork();
+    if (helper < 0) { kill(old_app, SIGTERM); waitpid(old_app, nullptr, 0); FAIL("fork failed"); }
+    if (helper == 0) {
+        chdir(f.dir.c_str());
+        setenv("APPIMAGE", "/old/image", 1); setenv("APPDIR", "/old/mount", 1);
+        setenv("LD_LIBRARY_PATH", "/old/mount/lib", 1);
+        const auto pid = std::to_string(old_app);
+        execl("/bin/sh", "/bin/sh", "-c", restart_script(), "restart-test", pid.c_str(), launcher.c_str(), nullptr);
+        _exit(127);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const bool launched_early = fs::exists(launcher.string() + ".started");
+    kill(old_app, SIGTERM);
+    waitpid(old_app, nullptr, 0);
+    int status = 0;
+    bool exited = false;
+    for (int i = 0; i < 40; ++i) {
+        if (waitpid(helper, &status, WNOHANG) == helper) { exited = true; break; }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (!exited) { kill(helper, SIGTERM); waitpid(helper, nullptr, 0); }
+    REQUIRE_FALSE(launched_early);
+    REQUIRE(exited);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 0);
+    REQUIRE(Fixture::read(launcher.string() + ".started") == "started");
+    REQUIRE_FALSE(fs::exists(f.dir / "INJECTED"));
 }
