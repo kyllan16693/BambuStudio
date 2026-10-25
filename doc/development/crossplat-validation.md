@@ -18,7 +18,7 @@ No public fork releases were created or installed over a personal application.
 | openSUSE Tumbleweed | 42 + 144 assertions | Main window rendered under Xvfb, screenshot inspected. |
 | Arch rolling | 42 + 144 assertions | Main window rendered under Xvfb, screenshot inspected. |
 | Alpine 3.24 / musl | 42 + 144 assertions | Official glibc AppImage is not a supported native package here. |
-| Windows 11 x64 | Native MSVC and MinGW builds: 42 assertions each; 8 PowerShell 5.1 helper scenarios; real NSIS install and cancellation | Full Visual Studio 2022 application build in progress. |
+| Windows 11 x64 | Native MSVC and MinGW builds: 42 assertions each; 8 PowerShell 5.1 helper scenarios; real NSIS install and cancellation | Full application build/install and visible main-window startup pass with Mesa software rendering; screenshot inspected. |
 | macOS 27.0.1 / Apple Silicon | Native AppleClang: 42 assertions; 32 native DMG/helper assertions | Full arm64 application build and visible native window pass with a disposable profile. |
 
 Linux containers share the host kernel. GUI checks use Xvfb and software OpenGL;
@@ -33,6 +33,42 @@ It also links a Homebrew Imath library built for macOS 26. This establishes a
 native build/startup on the test Mac, not standalone distribution or compatibility
 with older macOS versions. The existing `/Applications/BambuStudio.app` was left
 running and unchanged.
+
+The Windows full build uses Visual Studio 2022 Build Tools 17.14 / MSVC 19.44
+and the upstream prebuilt dependencies. Eleven downloaded dependency metadata
+files contained the upstream CI machine's absolute `D:/a/BambuStudio/...` library
+prefix; those paths were relocated to the VM's dependency directory, preserving
+the original files. This changes only the external test dependency installation.
+Reconfiguration regenerated the upstream compile-time header and required a full
+rebuild. Serial compilation limits memory pressure in the 8 GB VM; after MSVC
+reported `C1060: compiler is out of heap space`, an incremental retry in a fresh
+compiler reused the successfully rebuilt objects without changing flags.
+The downloaded dependencies also reference six STL symbols absent from MSVC
+14.44. Relinking uses Microsoft's SHA-256-verified MSVC 14.52.36815 preview
+linker and x64 runtime libraries, with the matching runtime DLLs beside the test
+app. Both the Desktop and Store CRT packages are needed: the latter contains
+the desktop `msvcprt.lib` import library. Only the generated test project's
+link-library path was adjusted; no production CMake configuration was changed.
+The successful relink/install command is `cmake --build build-msvc --config
+Release --target install --parallel 1 -- /p:LinkToolPath=<14.52-bin>/
+/p:LinkToolExe=link.exe`; the compile-time header's hash stayed unchanged.
+
+The Windows VM's VirtIO GPU DOD driver cannot provide OpenGL 2.0. Without Mesa,
+the app reaches its UI but stops at an `Unsupported OpenGL version` dialog; this
+is not counted as a startup pass. The passing run uses Mesa 26.2.4's x64
+`opengl32.dll` and `libgallium_wgl.dll` in the app's existing `mesa/` fallback
+directory, with that directory on the child process's `PATH` and
+`GALLIUM_DRIVER=llvmpipe`. The downloaded `mesa3d-26.2.4-release-msvc.7z` matches
+GitHub's SHA-256 `351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695`.
+No system graphics driver or GPU passthrough was changed. The main window is
+1200×800, titled `Untitled - BambuStudio`, and remained open through the script's
+10-second stability wait; the screenshot shows the rendered home page without
+a blocking dialog. This does not validate hardware graphics or 3D rendering.
+
+The Windows smoke fixture now terminates its JSON config with a newline. The
+Windows config loader expects that separator before its optional checksum;
+omitting it caused the initial fixture's `invalid string position` startup
+exception. No production config-loader change was needed.
 
 ## Native installer and transport checks
 
@@ -136,6 +172,12 @@ For Windows startup, run the following in the logged-in interactive test desktop
 & .\tests\application_updater\windows_gui_smoke.ps1 -Application path\to\bambu-studio.exe -Results results\fresh-smoke
 ```
 
+For the GPU-less VM, put the two Mesa x64 DLLs in the app's `mesa/` directory
+and add `-SoftwareRendering`. The script scopes `PATH` and `GALLIUM_DRIVER` to
+the run and restores the caller's values afterward. The wrapper selects Mesa
+automatically when the system OpenGL version is inadequate; do not pass
+`--sw-renderer`, which the current upstream CLI parser rejects.
+
 For helper tests, use Windows PowerShell 5.1 in the disposable elevated test VM:
 
 ```powershell
@@ -159,6 +201,12 @@ with `update-ca-certificates --fresh` and checked for remaining fixture entries.
 The task's Ubuntu 22 build container was stopped without deleting artifacts.
 Cleanup logs: `20261025-134023-ubuntu24-bambu-updater-1631916.log` and
 `20261025-134138-ubuntu24-1633595.log`.
+The final Windows audit found no app/build processes or smoke scheduled tasks;
+remaining WebView processes belonged to Windows Search and Widgets and were
+left alone (`20261025-182619-win11-bambu-updater-full-1882425.log`).
+The task's Windows VM was shut down with `xp down win11`; its stopped state
+was confirmed. Build artifacts and logs are retained, and Linux containers were
+left running.
 
 ## Local evidence
 
@@ -207,6 +255,11 @@ Additional application and integration evidence:
 - Windows real NSIS success: `20261025-124625-win11-bambu-updater-1576995.log`.
 - Windows real NSIS cancellation: `20261025-124433-win11-bambu-updater-1573354.log`.
 - Windows custom-profile helper/real NSIS success and cancellation: `20261025-141203-win11-bambu-updater-1656773.log`.
+- Windows serial compilation retry: `20261025-173539-win11-bambu-updater-full-1835246.log` (GUI library built; final link exposed the newer STL dependency).
+- Windows full relink/install: `20261025-181334-win11-bambu-updater-full-1871801.log`, exit 0 in 124 s, using `C:/xp/work/bambu-msvc52/relink.ps1` and the command above. The script also copies the matching runtime DLLs beside the installed app.
+- Windows no-Mesa startup: `20261025-181857-win11-bambu-updater-full-1876195.log`, exit 1 in 82 s; screenshot confirms the unsupported-OpenGL dialog.
+- Windows final desktop startup: `20261025-182357-win11-bambu-updater-full-1880708.log`, exit 0 in 38 s, using the interactive scheduled-task controller to invoke the tracked smoke script with `-SoftwareRendering`. Screenshot and window metadata: `C:/xp/work/bambu-updater-full/results/gui-final-source-llvmpipe/`.
+- Windows installed `BambuStudio.dll`: 119,529,472 bytes, SHA-256 `ce45102b74c08294833f0067baedcee5db93f627b838caecf22d492c5cd6e8d9`. The tested smoke script's SHA-256 `79b6e2fb1350599d9af47a19c103a4940a21471859450d52d6a77a0a8ad8425b` matches the tracked file.
 - Ubuntu final save/geometry/profile restart: `20261025-133844-ubuntu24-bambu-updater-1630444.log`.
 - Ubuntu final replacement/backup: `20261025-133234-ubuntu24-bambu-updater-1623365.log`.
 - Ubuntu GUI replacement/backup: `20261025-123418-ubuntu24-bambu-updater-1560082.log`.

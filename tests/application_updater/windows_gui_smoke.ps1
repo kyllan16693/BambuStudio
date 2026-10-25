@@ -1,6 +1,7 @@
 ﻿# Run in a logged-in disposable Windows desktop, rather than the SSH session.
 param([Parameter(Mandatory=$true)][string]$Application,
-      [Parameter(Mandatory=$true)][string]$Results)
+      [Parameter(Mandatory=$true)][string]$Results,
+      [switch]$SoftwareRendering)
 $ErrorActionPreference = 'Stop'
 $exe = (Resolve-Path -LiteralPath $Application).Path
 $results = [IO.Path]::GetFullPath($Results)
@@ -27,11 +28,21 @@ public class BambuSmokeWindow {
 $profile = Join-Path $results 'profile'
 [IO.Directory]::CreateDirectory($profile) | Out-Null
 $config = @{ app=@{language='en_US'; region='North America'}; firstguide=@{finish=$true; privacyuse=$false}; models=@(@{model='Bambu Lab A1';vendor='BBL';nozzle_diameter='0.4'}) } | ConvertTo-Json -Depth 5
-[IO.File]::WriteAllText((Join-Path $profile 'BambuStudio.conf'), $config, [Text.UTF8Encoding]::new($false))
+# The Windows config loader expects a newline between the final JSON brace and
+# its optional checksum. Match the app's on-disk format even without a checksum.
+[IO.File]::WriteAllText((Join-Path $profile 'BambuStudio.conf'), $config + "`n", [Text.UTF8Encoding]::new($false))
 $process = $null
 $failure = $null
+$previousPath = $env:PATH
+$previousGalliumDriver = $env:GALLIUM_DRIVER
 try {
- $process = Start-Process -FilePath $exe -ArgumentList @('--datadir', ('"'+$profile+'"')) -PassThru -RedirectStandardOutput (Join-Path $results 'stdout.log') -RedirectStandardError (Join-Path $results 'stderr.log')
+ $appArguments = @('--datadir', ('"'+$profile+'"'))
+ if ($SoftwareRendering) {
+  # Requires Mesa's x64 DLLs in the application's existing mesa/ fallback path.
+  $env:GALLIUM_DRIVER = 'llvmpipe'
+  $env:PATH = (Join-Path (Split-Path -Parent $exe) 'mesa') + ';' + $env:PATH
+ }
+ $process = Start-Process -FilePath $exe -ArgumentList $appArguments -PassThru -RedirectStandardOutput (Join-Path $results 'stdout.log') -RedirectStandardError (Join-Path $results 'stderr.log')
  $script:windows = [Collections.Generic.List[object]]::new()
  $deadline = [DateTime]::UtcNow.AddSeconds(75)
  do {
@@ -69,6 +80,8 @@ try {
  $graphics.Dispose();$bitmap.Dispose()
  } catch { Write-Warning "Screenshot failed: $_" }
  if ($process -and !$process.HasExited) { Stop-Process -Id $process.Id -Force }
+ $env:PATH = $previousPath
+ $env:GALLIUM_DRIVER = $previousGalliumDriver
  Stop-Transcript
 }
 # Publish completion only after the screenshot and process cleanup, so a task

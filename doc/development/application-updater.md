@@ -167,7 +167,9 @@ NSIS installation/relaunch and cancellation passed. Native HTTPS downloads on
 both Windows and Mac verified a 229,153,272-byte public release payload.
 
 The full Mac application built and opened a visible native window with an
-isolated profile. Final Linux GUI tests reached the main window on Ubuntu 22/24/26, Fedora,
+isolated profile. The full Windows x64 application built, installed, and opened
+its main window in the test VM using Mesa software rendering. Final Linux GUI
+tests reached the main window on Ubuntu 22/24/26, Fedora,
 Mint, Debian, openSUSE, and Arch. Ubuntu 26 testing found and fixed a stale
 private-font-family cache in Pango initialization. Ubuntu
 24's actual GUI exercised HTTPS failure, corruption rejection, cancellation,
