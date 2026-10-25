@@ -29,6 +29,7 @@ $profile = Join-Path $results 'profile'
 $config = @{ app=@{language='en_US'; region='North America'}; firstguide=@{finish=$true; privacyuse=$false}; models=@(@{model='Bambu Lab A1';vendor='BBL';nozzle_diameter='0.4'}) } | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $profile 'BambuStudio.conf'), $config, [Text.UTF8Encoding]::new($false))
 $process = $null
+$failure = $null
 try {
  $process = Start-Process -FilePath $exe -ArgumentList @('--datadir', ('"'+$profile+'"')) -PassThru -RedirectStandardOutput (Join-Path $results 'stdout.log') -RedirectStandardError (Join-Path $results 'stderr.log')
  $script:windows = [Collections.Generic.List[object]]::new()
@@ -48,19 +49,16 @@ try {
    }
    return $true
   },[IntPtr]::Zero) | Out-Null
-  $main=@($script:windows | Where-Object { $_.Title -eq 'Untitled' -and $_.Width -gt 700 -and $_.Height -gt 400 })
+  $main=@($script:windows | Where-Object { $_.Title -eq 'Untitled - BambuStudio' -and $_.Width -gt 700 -and $_.Height -gt 400 })
  } while (!$main.Count -and [DateTime]::UtcNow -lt $deadline)
  $script:windows | ConvertTo-Json | Set-Content (Join-Path $results 'windows.json')
- if (!$main.Count) { throw 'No visible Untitled application main window' }
+ if (!$main.Count) { throw 'No visible Untitled - BambuStudio application main window' }
  Start-Sleep -Seconds 10
  $process.Refresh()
  if ($process.HasExited) { throw 'Application exited after main-window creation' }
- [IO.File]::WriteAllText((Join-Path $results 'status.txt'),'PASS native Windows full-app main window startup')
- Write-Output 'PASS native Windows full-app main window startup'
 } catch {
+ $failure = $_
  $_ | Out-String | Set-Content (Join-Path $results 'failure.txt')
- [IO.File]::WriteAllText((Join-Path $results 'status.txt'),'FAIL '+$_.Exception.Message)
- throw
 } finally {
  try {
  $bounds=[Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -73,3 +71,11 @@ try {
  if ($process -and !$process.HasExited) { Stop-Process -Id $process.Id -Force }
  Stop-Transcript
 }
+# Publish completion only after the screenshot and process cleanup, so a task
+# runner cannot stop this script while its finally block is still executing.
+if ($failure) {
+ [IO.File]::WriteAllText((Join-Path $results 'status.txt'),'FAIL '+$failure.Exception.Message)
+ throw $failure
+}
+[IO.File]::WriteAllText((Join-Path $results 'status.txt'),'PASS native Windows full-app main window startup')
+Write-Output 'PASS native Windows full-app main window startup'

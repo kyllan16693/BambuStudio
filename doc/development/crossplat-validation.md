@@ -164,6 +164,29 @@ Cleanup logs: `20261025-134023-ubuntu24-bambu-updater-1631916.log` and
 
 Raw crossplat logs are retained under `/mnt/gamesDrive/crossplat/logs`:
 
+The latest Linux component runs use `xp run <target> -p bambu-updater --timeout 180 -- 'bash run-tests.sh'`
+(invoked through `xp matrix`), and each passes 42 portable + 144 Linux assertions:
+
+| Target | Exit | Wall time | Log |
+| --- | --- | --- | --- |
+| Ubuntu 24.04 | 0 | 13 s | `20261025-141559-matrix-ubuntu24.log` |
+| Alpine 3.24 | 0 | 19 s | `20261025-141559-matrix-alpine.log` |
+| Ubuntu 26.04 | 0 | 28 s | `20261025-142025-matrix-ubuntu.log` |
+| Mint package environment | 0 | 29 s | `20261025-142025-matrix-mint.log` |
+| Debian 13 | 0 | 29 s | `20261025-142025-matrix-debian.log` |
+| Fedora 44 | 0 | 28 s | `20261025-142025-matrix-fedora.log` |
+| openSUSE Tumbleweed | 0 | 30 s | `20261025-142025-matrix-opensuse.log` |
+| Arch rolling | 0 | 31 s | `20261025-142025-matrix-arch.log` |
+
+The Mac native command `cmake --build build/portable --parallel 2 && build/portable/application_updater_tests && python3 tests/application_updater/macos_native_tests.py build/portable/updater_native_driver`
+returns 0 in 43 s (`20261025-141148-mac-bambu-updater-1656682.log`). Windows
+PowerShell 5.1 helper tests followed by real NSIS success and cancellation return
+0 in 28 s (`20261025-141203-win11-bambu-updater-1656773.log`); commands are shown
+in the reproduction section and each log header. Native MSVC recompilation and
+the portable executable return 0 in 8 s (`20261025-141921-win11-bambu-updater-1669671.log`).
+
+Additional application and integration evidence:
+
 - Ubuntu 22 final GUI: `build/gui-production-font-fix-ready/{startup.log,startup.png}`; runner log `/tmp/bambu-ubuntu22-gui-final.log`.
 - Final Linux AppImage: 257,255,928 bytes, SHA-256 `dd70feda85e307121cae674f3f405c979412f2d4a6976b507e54738a361d010b`.
 - Ubuntu 26 production fix: `20261025-133007-ubuntu-bambu-updater-1616193.log`.
