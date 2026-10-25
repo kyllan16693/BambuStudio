@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <wx/stdpaths.h>
+#include <wx/filefn.h>
 #include <thread>
 #include <wx/progdlg.h>
 
