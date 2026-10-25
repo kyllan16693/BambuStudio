@@ -153,3 +153,20 @@ test UAC acceptance/cancellation and Unicode/spaced installation paths. On macOS
 test mounted-image rejection, Intel/Apple silicon, signature failure, backup
 rotation, and rollback. Portable tests and Linux shell transaction tests do not
 replace native GUI/installer testing.
+
+## Current validation result
+
+On 2026-10-25, Ubuntu 22.04 passed 143 assertions in the Linux/transaction
+suite and 42 in the portable suite. PowerShell 7 on Linux passed the helper's
+syntax check and four mocked installer/process scenarios. NSIS compiled a
+fixture installer, and the macOS preparation branch passed a Linux-hosted
+syntax check. The shared HTTPS transport downloaded and verified a
+229,153,272-byte official AppImage into a disposable fixture.
+
+The complete Linux application compiled/linked and packaged successfully. The
+AppImage opened to the welcome/setup screen under Xvfb with a temporary profile
+and software OpenGL in the Ubuntu 22.04 build container. The startup check set
+`SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` so the existing certificate
+setup prompt did not block the test. This validates startup, not the complete
+GUI save/update/restart flow. Native Windows/macOS installer and GUI testing
+remains outstanding; no release binaries have been published.
