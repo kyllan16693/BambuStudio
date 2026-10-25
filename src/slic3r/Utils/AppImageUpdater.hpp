@@ -1,6 +1,8 @@
 #ifndef slic3r_AppImageUpdater_hpp_
 #define slic3r_AppImageUpdater_hpp_
 
+#include "ReleaseUpdater.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -10,18 +12,10 @@
 
 namespace Slic3r::AppImageUpdater {
 
-struct Release {
-    std::string version;
-    std::string notes;
-    std::string url;
-    std::string sha256;
-    std::uint64_t size = 0;
-};
-
-// Repository and asset are build-time choices, never taken from release content.
-std::optional<Release> select_release(const std::string &json, const std::string &repository,
-                                     const std::string &asset, const std::string &current_version,
-                                     bool include_prereleases);
+using Release = ReleaseUpdater::Release;
+using ReleaseUpdater::select_release;
+using ReleaseUpdater::validate_release;
+using ReleaseUpdater::download;
 std::string current_appimage();
 // Invoked as /bin/sh -c <script> name <old-pid> <absolute-AppImage-path>.
 const char *restart_script();

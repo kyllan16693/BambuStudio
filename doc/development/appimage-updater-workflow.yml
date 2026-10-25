@@ -5,7 +5,9 @@ on:
     branches: [feature/linux-in-app-updates]
     paths:
       - 'src/slic3r/Utils/AppImageUpdater.*'
-      - 'src/slic3r/GUI/AppImageUpdate.cpp'
+      - 'src/slic3r/Utils/ReleaseUpdater.*'
+      - 'src/slic3r/Utils/DesktopUpdater.*'
+      - 'src/slic3r/GUI/AppUpdate.cpp'
       - 'tests/appimage_updater/**'
       - '.github/workflows/appimage-updater.yml'
   workflow_dispatch:

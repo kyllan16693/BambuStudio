@@ -2,6 +2,7 @@
 #define CATCH_CONFIG_NO_POSIX_SIGNALS
 #include <catch2/catch.hpp>
 #include "slic3r/Utils/AppImageUpdater.hpp"
+#include "slic3r/Utils/DesktopUpdater.hpp"
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
 #include <filesystem>
@@ -293,4 +294,53 @@ printf started > "$0.started"
     REQUIRE(WEXITSTATUS(status) == 0);
     REQUIRE(Fixture::read(launcher.string() + ".started") == "started");
     REQUIRE_FALSE(fs::exists(f.dir / "INJECTED"));
+}
+
+TEST_CASE("macOS replacement helper rotates backups, detects changed installs and rolls back")
+{
+    using Slic3r::DesktopUpdater::mac_install_script;
+    Fixture f;
+    const auto app = f.dir / "Bambu 'Studio' $.app";
+    const auto stage = f.dir / "stage with spaces";
+    const auto backup = fs::path(app.string() + ".previous");
+    fs::create_directories(app);
+    fs::create_directories(stage / "new.app");
+    Fixture::write(app / "version", "old");
+    Fixture::write(stage / "new.app/version", "new");
+    fs::create_directories(backup);
+    Fixture::write(backup / "version", "older");
+    struct stat original = {};
+    REQUIRE(stat(app.c_str(), &original) == 0);
+    const auto identity = std::to_string(original.st_dev) + ":" + std::to_string(original.st_ino) + ":" + std::to_string(original.st_mtime);
+    Fixture::write(stage / "identity", identity);
+    bool succeeds = true;
+    bool restore = false;
+    SECTION("Successful replacement") {}
+    SECTION("Installation changed") { Fixture::write(stage / "identity", "other"); succeeds = false; }
+    SECTION("Unsafe backup") { fs::remove_all(backup); fs::create_directory_symlink(app, backup); succeeds = false; }
+    SECTION("Staged app missing") { fs::remove_all(stage / "new.app"); succeeds = false; }
+    SECTION("Replacement fails after moving old app") { restore = true; succeeds = false; }
+    auto script = std::string(mac_install_script());
+    const auto replace = [&](const std::string &from, const std::string &to) {
+        const auto pos = script.find(from); REQUIRE(pos != std::string::npos); script.replace(pos, from.size(), to);
+    };
+    // Run the real transaction on Linux; replace only macOS-specific tools.
+    replace("/usr/bin/stat -f '%d:%i:%m'", "/usr/bin/stat -c '%d:%i:%Y'");
+    replace("/usr/bin/open", "/bin/true");
+    replace("/usr/bin/osascript", "/bin/true");
+    if (restore) replace("/bin/mv \"$stage/new.app\" \"$app\"", "/bin/false");
+    const auto pid = fork();
+    REQUIRE(pid >= 0);
+    if (pid == 0) {
+        execl("/bin/sh", "/bin/sh", "-c", script.c_str(), "update-test", "999999999", app.c_str(), stage.c_str(), nullptr);
+        _exit(127);
+    }
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE((WEXITSTATUS(status) == 0) == succeeds);
+    REQUIRE(Fixture::read(app / "version") == (succeeds ? "new" : "old"));
+    REQUIRE_FALSE(fs::exists(app.string() + ".update-lock"));
+    if (succeeds) { REQUIRE(Fixture::read(backup / "version") == "old"); REQUIRE_FALSE(fs::exists(stage)); }
+    if (restore) REQUIRE(Fixture::read(backup / "version") == "older");
 }

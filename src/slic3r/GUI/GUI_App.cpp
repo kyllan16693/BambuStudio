@@ -2999,9 +2999,7 @@ int GUI_App::OnExit()
     if (app_config && app_config->dirty())
         app_config->save();
 
-#ifdef __linux__
-    restart_updated_appimage();
-#endif
+    finish_application_update();
     return wxApp::OnExit();
 }
 
@@ -5784,9 +5782,7 @@ bool GUI_App::check_send_print_version_policy()
 
 void GUI_App::check_new_version(bool show_tips, int by_user)
 {
-#ifdef __linux__
-    if (check_appimage_update(show_tips || by_user != 0)) return;
-#endif
+    if (check_application_update(show_tips || by_user != 0)) return;
     std::string platform = "windows";
 
 #ifdef __WINDOWS__
