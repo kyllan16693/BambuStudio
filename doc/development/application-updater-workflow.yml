@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           if [ '${{ runner.os }}' = macOS ]; then
-            export CMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix openssl@3)"
+            export CMAKE_PREFIX_PATH="$(brew --prefix curl):$(brew --prefix openssl@3)"
           fi
           cmake -S tests/application_updater -B build/portable -DCMAKE_BUILD_TYPE=Debug
       - name: Configure portable tests (Windows)

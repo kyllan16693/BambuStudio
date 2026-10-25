@@ -552,6 +552,15 @@ Http& Http::auth_basic(const std::string &user, const std::string &password)
     return *this;
 }
 
+Http& Http::https_only()
+{
+    if (p) {
+        ::curl_easy_setopt(p->curl, CURLOPT_PROTOCOLS, static_cast<long>(CURLPROTO_HTTPS));
+        ::curl_easy_setopt(p->curl, CURLOPT_REDIR_PROTOCOLS, static_cast<long>(CURLPROTO_HTTPS));
+    }
+    return *this;
+}
+
 Http& Http::ca_file(const std::string &name)
 {
 	if (p && priv::ca_file_supported(p->curl)) {

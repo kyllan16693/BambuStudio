@@ -139,7 +139,7 @@ bool GUI_App::check_application_update(bool show_tips)
     const char *ca_file = std::getenv("SSL_CERT_FILE");
     http.ca_file(ca_file ? ca_file : "/etc/ssl/cert.pem");
 #endif
-    http.header("Accept", "application/vnd.github+json")
+    http.https_only().header("Accept", "application/vnd.github+json")
         .header("User-Agent", "BambuStudio-Updater")
         .timeout_connect(TIMEOUT_CONNECT).timeout_max(TIMEOUT_RESPONSE)
         .on_complete([this, repository, asset, image, include_prereleases, show_tips](std::string body, unsigned) {
