@@ -188,7 +188,8 @@ void GUI_App::finish_application_update()
     const wxString pid = wxString::Format("%ld", wxGetProcessId());
     const wxString script = wxString::FromUTF8(AppImageUpdater::restart_script());
     const wxString image = wxString::FromUTF8(m_update_restart_path);
-    const wxChar *arguments[] = {wxT("/bin/sh"), wxT("-c"), script.c_str(), wxT("bambustudio-restart"), pid.c_str(), image.c_str(), nullptr};
+    const wxString profile = wxString::FromUTF8(Slic3r::data_dir());
+    const wxChar *arguments[] = {wxT("/bin/sh"), wxT("-c"), script.c_str(), wxT("bambustudio-restart"), pid.c_str(), image.c_str(), profile.c_str(), nullptr};
     if (wxExecute(arguments, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) == 0)
         wxLogError("Could not schedule Bambu Studio restart; launch the updated AppImage manually.");
 #else

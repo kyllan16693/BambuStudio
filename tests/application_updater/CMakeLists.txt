@@ -13,3 +13,7 @@ if(NOT MSVC)
     target_compile_options(application_updater_tests PRIVATE -Wall -Wextra -Wpedantic -Wno-deprecated-declarations)
 endif()
 add_test(NAME application_updater COMMAND application_updater_tests)
+add_executable(updater_native_driver native_driver.cpp
+    ../../src/slic3r/Utils/ReleaseUpdater.cpp ../../src/slic3r/Utils/DesktopUpdater.cpp)
+target_include_directories(updater_native_driver PRIVATE ../../src)
+target_link_libraries(updater_native_driver PRIVATE CURL::libcurl OpenSSL::Crypto)

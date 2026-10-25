@@ -27,7 +27,7 @@ struct Fixture {
     Fixture() {
         std::random_device random;
         for (int i = 0; i < 10; ++i) {
-            auto candidate = fs::temp_directory_path() / ("bambu test ' $ " + std::to_string(random()));
+            auto candidate = fs::temp_directory_path() / fs::u8path(u8"bambu test ' $ \u00e9 \u6f22 " + std::to_string(random()));
             if (fs::create_directory(candidate)) { directory = candidate; return; }
         }
         throw std::runtime_error("Cannot create fixture");

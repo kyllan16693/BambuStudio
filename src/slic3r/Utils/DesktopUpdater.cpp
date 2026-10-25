@@ -220,7 +220,7 @@ void prepare_mac_bundle(const std::string &package, const std::string &applicati
 #else
         const std::string architecture = "x86_64";
 #endif
-        run({"/usr/bin/lipo", "-verify_arch", architecture, (bundle / "Contents/MacOS/BambuStudio").u8string()});
+        run({"/usr/bin/lipo", (bundle / "Contents/MacOS/BambuStudio").u8string(), "-verify_arch", architecture});
         run({"/usr/bin/ditto", bundle.u8string(), (directory / "new.app").u8string()});
         run({"/usr/bin/codesign", "--verify", "--deep", "--strict", (directory / "new.app").u8string()});
     } catch (...) {

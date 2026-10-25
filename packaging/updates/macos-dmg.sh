@@ -8,7 +8,8 @@ fi
 app=$1
 output=$2
 /usr/bin/codesign --verify --deep --strict "$app"
-/usr/bin/lipo -verify_arch x86_64 arm64 "$app/Contents/MacOS/BambuStudio"
+/usr/bin/lipo "$app/Contents/MacOS/BambuStudio" -verify_arch x86_64
+/usr/bin/lipo "$app/Contents/MacOS/BambuStudio" -verify_arch arm64
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 /usr/bin/ditto "$app" "$stage/BambuStudio.app"

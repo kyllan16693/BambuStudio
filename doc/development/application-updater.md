@@ -126,7 +126,7 @@ source and runs four scenarios with mocked process/installer commands and a
 headless alert: normal install, already-exited parent, cancelled installer, and
 parent timeout. It also checks literal paths, the fixed installation directory,
 cleanup, and restart ordering. It runs with PowerShell 7 on Linux or Windows;
-Windows PowerShell 5.1 and real UAC still require native verification.
+Windows PowerShell 5.1 has also been exercised in the native VM; real UAC on an unelevated desktop still requires verification.
 
 The Linux suite additionally tests atomic replacement, inode preservation,
 backup rotation, concurrent updates, unsafe paths, restart waiting/environment,
@@ -156,17 +156,22 @@ replace native GUI/installer testing.
 
 ## Current validation result
 
-On 2026-10-25, Ubuntu 22.04 passed 143 assertions in the Linux/transaction
-suite and 42 in the portable suite. PowerShell 7 on Linux passed the helper's
-syntax check and four mocked installer/process scenarios. NSIS compiled a
-fixture installer, and the macOS preparation branch passed a Linux-hosted
-syntax check. The shared HTTPS transport downloaded and verified a
-229,153,272-byte official AppImage into a disposable fixture.
+Crossplat testing on 2026-10-25 passed 42 portable and 144 Linux assertions on
+each of Ubuntu 24/26, Fedora, Mint's package environment, Debian, openSUSE, Arch,
+and Alpine. Native Windows and Mac builds of the portable suite passed all 42
+assertions. The native Mac DMG/helper suite passed 31 assertions; real Windows
+NSIS installation/relaunch and cancellation passed. Native HTTPS downloads on
+both Windows and Mac verified a 229,153,272-byte public release payload.
 
-The complete Linux application compiled/linked and packaged successfully. The
-AppImage opened to the welcome/setup screen under Xvfb with a temporary profile
-and software OpenGL in the Ubuntu 22.04 build container. The startup check set
-`SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` so the existing certificate
-setup prompt did not block the test. This validates startup, not the complete
-GUI save/update/restart flow. Native Windows/macOS installer and GUI testing
-remains outstanding; no release binaries have been published.
+The full Mac application built and opened a visible native window with an
+isolated profile. Final Linux GUI tests reached the main window on Ubuntu 22/24/26, Fedora,
+Mint, Debian, openSUSE, and Arch. Ubuntu 26 testing found and fixed a stale
+private-font-family cache in Pango initialization. Ubuntu
+24's actual GUI exercised HTTPS failure, corruption rejection, cancellation,
+replacement, backup, save cancellation, deferral, recheck, and relaunch. That
+relaunch found loss of a custom data directory, now fixed and verified through
+a complete GUI save/update/restart with the original profile and a valid saved 3MF.
+
+See [crossplat-validation.md](crossplat-validation.md) for exact evidence,
+reproduction commands, environment caveats, full-build status, and outstanding
+native GUI/distribution checks. No public fork release has been published.

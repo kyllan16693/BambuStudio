@@ -43,6 +43,7 @@ const char *restart_script()
     i=$((i+1)); [ "$i" -lt 120 ] || exit 1; sleep 1
     done
     unset APPIMAGE APPDIR ARGV0 OWD LD_LIBRARY_PATH LD_PRELOAD
+    if [ -n "${3:-}" ]; then exec "$2" --datadir "$3"; fi
     exec "$2")";
 }
 

@@ -255,13 +255,14 @@ TEST_CASE("Download cancellation and forbidden protocols leave no partial instal
     REQUIRE(f.no_staging());
 }
 
-TEST_CASE("Restart waits for exit, clears AppImage environment and treats the path literally")
+TEST_CASE("Restart waits for exit, clears AppImage environment and preserves literal profile paths")
 {
     Fixture f;
     const auto launcher = f.dir / "app ' $(touch INJECTED) é.AppImage";
     Fixture::write(launcher, R"(#!/bin/sh
 if [ -n "${APPIMAGE+x}${APPDIR+x}${LD_LIBRARY_PATH+x}${LD_PRELOAD+x}" ]; then exit 3; fi
 printf started > "$0.started"
+printf '%s\n' "$@" > "$0.arguments"
 )");
     chmod(launcher.c_str(), 0755);
     const pid_t old_app = fork();
@@ -274,7 +275,8 @@ printf started > "$0.started"
         setenv("APPIMAGE", "/old/image", 1); setenv("APPDIR", "/old/mount", 1);
         setenv("LD_LIBRARY_PATH", "/old/mount/lib", 1);
         const auto pid = std::to_string(old_app);
-        execl("/bin/sh", "/bin/sh", "-c", restart_script(), "restart-test", pid.c_str(), launcher.c_str(), nullptr);
+        const auto profile = (f.dir / "profile ' $(touch INJECTED) é").string();
+        execl("/bin/sh", "/bin/sh", "-c", restart_script(), "restart-test", pid.c_str(), launcher.c_str(), profile.c_str(), nullptr);
         _exit(127);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -293,6 +295,7 @@ printf started > "$0.started"
     REQUIRE(WIFEXITED(status));
     REQUIRE(WEXITSTATUS(status) == 0);
     REQUIRE(Fixture::read(launcher.string() + ".started") == "started");
+    REQUIRE(Fixture::read(launcher.string() + ".arguments") == "--datadir\n" + (f.dir / "profile ' $(touch INJECTED) é").string() + "\n");
     REQUIRE_FALSE(fs::exists(f.dir / "INJECTED"));
 }
 
@@ -325,7 +328,7 @@ TEST_CASE("macOS replacement helper rotates backups, detects changed installs an
         const auto pos = script.find(from); REQUIRE(pos != std::string::npos); script.replace(pos, from.size(), to);
     };
     // Run the real transaction on Linux; replace only macOS-specific tools.
-    replace("/usr/bin/stat -f '%d:%i:%m'", "/usr/bin/stat -c '%d:%i:%Y'");
+    replace("/usr/bin/stat -f '%d:%i:%m'", "stat -c '%d:%i:%Y'");
     replace("/usr/bin/open", "/bin/true");
     replace("/usr/bin/osascript", "/bin/true");
     if (restore) replace("/bin/mv \"$stage/new.app\" \"$app\"", "/bin/false");
