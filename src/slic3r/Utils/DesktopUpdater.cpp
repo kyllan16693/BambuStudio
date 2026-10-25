@@ -109,7 +109,7 @@ std::string download_package(const std::string &parent, const ReleaseUpdater::Re
 
 const char *windows_install_script()
 {
-    return R"PS(param([int]$ParentId, [string]$Package, [string]$Application)
+    return R"PS(param([int]$ParentId, [string]$Package, [string]$Application, [string]$DataDirectory)
 $ErrorActionPreference = 'Stop'
 try {
     # A PID may already have exited before the helper starts.
@@ -119,7 +119,14 @@ try {
     $installDir = [System.IO.Path]::GetDirectoryName($Application)
     $installer = Start-Process -FilePath $Package -ArgumentList ('/UPDATE /D=' + $installDir) -Wait -PassThru
     if ($installer.ExitCode -ne 0) { throw "Installer cancelled or failed ($($installer.ExitCode))." }
-    Start-Process -FilePath $Application
+    if ($DataDirectory) {
+        # Windows paths cannot contain quotes. Double trailing backslashes so
+        # the native argument parser preserves them before the closing quote.
+        $quotedDirectory = '"' + ($DataDirectory -replace '(\\+)$', '$1$1') + '"'
+        Start-Process -FilePath $Application -ArgumentList ('--datadir ' + $quotedDirectory)
+    } else {
+        Start-Process -FilePath $Application
+    }
 } catch {
     Add-Type -AssemblyName PresentationFramework
     [System.Windows.MessageBox]::Show($_.Exception.Message, 'Bambu Studio update failed') | Out-Null
@@ -166,7 +173,11 @@ if ! /bin/mv "$stage/new.app" "$app"; then
     fail
 fi
 # Preserve the old version if launch fails, too.
-/usr/bin/open "$app" || fail
+if [ -n "${4:-}" ]; then
+    /usr/bin/open "$app" --args --datadir "$4" || fail
+else
+    /usr/bin/open "$app" || fail
+fi
 /bin/rm -rf "$stage"
 )SH";
 }

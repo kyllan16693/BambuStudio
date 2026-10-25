@@ -204,10 +204,11 @@ void GUI_App::finish_application_update()
     const wxString pid = wxString::Format("%ld", wxGetProcessId());
     const wxString application = wxString::FromUTF8(m_update_restart_path);
     const wxString package = wxString::FromUTF8(m_update_package_path);
+    const wxString profile = wxString::FromUTF8(Slic3r::data_dir());
 #ifdef __APPLE__
     const wxString stage = wxString::FromUTF8(directory.u8string());
     const wxString script = wxString::FromUTF8(DesktopUpdater::mac_install_script());
-    const wxChar *arguments[] = {wxT("/bin/sh"), wxT("-c"), script.c_str(), wxT("bambustudio-update"), pid.c_str(), application.c_str(), stage.c_str(), nullptr};
+    const wxChar *arguments[] = {wxT("/bin/sh"), wxT("-c"), script.c_str(), wxT("bambustudio-update"), pid.c_str(), application.c_str(), stage.c_str(), profile.c_str(), nullptr};
 #else
     const auto script_path = directory / "install.ps1";
     std::ofstream script_file(script_path, std::ios::binary);
@@ -217,7 +218,7 @@ void GUI_App::finish_application_update()
     if (!script_file) { wxLogError("Could not save the update helper."); return; }
     const wxString script = wxString::FromUTF8(script_path.u8string());
     const wxString powershell = wxGetOSDirectory() + wxT("\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
-    const wxChar *arguments[] = {powershell.c_str(), wxT("-NoProfile"), wxT("-NonInteractive"), wxT("-ExecutionPolicy"), wxT("Bypass"), wxT("-File"), script.c_str(), wxT("-ParentId"), pid.c_str(), wxT("-Package"), package.c_str(), wxT("-Application"), application.c_str(), nullptr};
+    const wxChar *arguments[] = {powershell.c_str(), wxT("-NoProfile"), wxT("-NonInteractive"), wxT("-ExecutionPolicy"), wxT("Bypass"), wxT("-File"), script.c_str(), wxT("-ParentId"), pid.c_str(), wxT("-Package"), package.c_str(), wxT("-Application"), application.c_str(), wxT("-DataDirectory"), profile.c_str(), nullptr};
 #endif
     if (wxExecute(arguments, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) == 0)
         wxLogError("Could not start the update helper. The current app is unchanged.");

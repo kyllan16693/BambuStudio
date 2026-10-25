@@ -14,6 +14,8 @@ $fixture = Join-Path $root 'fixture'
 $install = Join-Path $root "Bambu [Studio] ' `$ é 漢"
 $stage = Join-Path $root "stage [verified] ' `$ é 漢"
 New-Item -ItemType Directory $fixture,$install,$stage | Out-Null
+$dataDirectory = (Join-Path $root "profile [saved] ' `$ é 漢") + '\'
+[IO.Directory]::CreateDirectory($dataDirectory) | Out-Null
 $events = [Collections.Generic.List[string]]::new()
 function Assert($condition, [string]$message) { if (!$condition) { throw $message } }
 Add-Type @'
@@ -37,7 +39,7 @@ $program = @'
 using System;
 using System.IO;
 public class BambuFixture {
- public static void Main() { File.WriteAllText(System.Reflection.Assembly.GetExecutingAssembly().Location + ".launched", "launched"); }
+ public static void Main(string[] args) { File.WriteAllText(System.Reflection.Assembly.GetExecutingAssembly().Location + ".launched", "launched\n" + string.Join("\n", args)); }
 }
 '@
 Add-Type -TypeDefinition $program -OutputAssembly $exe -OutputType WindowsApplication
@@ -56,6 +58,7 @@ $helperFile = Join-Path $stage 'install.ps1'
 $parent = Start-Process powershell.exe -ArgumentList '-NoProfile -Command Start-Sleep -Seconds 6' -PassThru
 $application = Join-Path $install 'bambu-studio.exe'
 $command = "& '" + $helperFile.Replace("'", "''") + "' -ParentId " + $parent.Id + " -Package '" + $package.Replace("'", "''") + "' -Application '" + $application.Replace("'", "''") + "'"
+$command += " -DataDirectory '" + $dataDirectory.Replace("'", "''") + "'"
 $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
 $failureShown = $false
 $process = Start-Process powershell.exe -ArgumentList "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $encoded" -PassThru
@@ -100,9 +103,9 @@ try {
   return
  }
  for ($i=0; $i -lt 50 -and !(Test-Path -LiteralPath $marker); $i++) { Start-Sleep -Milliseconds 100 }
- Assert ((Get-Content -LiteralPath $marker -Raw) -eq 'launched') 'Updated app did not relaunch'
+ Assert ([IO.File]::ReadAllText($marker) -ceq ("launched`n--datadir`n" + $dataDirectory)) 'Updated app did not preserve the exact custom data directory, including its trailing backslash'
  Assert ($events.Count -ge 2) 'Native installer pages were not exercised'
- Write-Output ('PASS native Windows NSIS install, parent wait, Unicode/spaced paths, cleanup and relaunch. Buttons: ' + ($events -join ', '))
+ Write-Output ('PASS native Windows NSIS install, parent wait, Unicode/spaced paths, cleanup, custom profile and relaunch. Buttons: ' + ($events -join ', '))
 } finally {
  if (!$process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
  # Remove only this fixture's registration, after checking the uninstaller path.

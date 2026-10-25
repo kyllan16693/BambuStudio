@@ -1,4 +1,4 @@
-param([string]$Repository = (Join-Path $PSScriptRoot '../..'))
+﻿param([string]$Repository = (Join-Path $PSScriptRoot '../..'))
 $ErrorActionPreference = 'Stop'
 $source = [IO.File]::ReadAllText((Join-Path $Repository 'src/slic3r/Utils/DesktopUpdater.cpp'))
 $match = [regex]::Match($source, 'R"PS\(([\s\S]*?)\)PS"')
@@ -38,6 +38,7 @@ function Start-Process([string]$FilePath, [string]$ArgumentList, [switch]$Wait, 
     }
     Assert ($FilePath -ceq $script:Application) 'Wrong app path'
     Assert ($script:InstallerExitCode -eq 0) 'App restarted after failed installation'
+    Assert ($ArgumentList -ceq $script:ExpectedArguments) 'Custom data directory was dropped or misquoted'
     $script:Events.Add('launch')
 }
 function Remove-Item([string]$LiteralPath, [switch]$Recurse, [switch]$Force, [string]$ErrorAction) {
@@ -46,18 +47,22 @@ function Remove-Item([string]$LiteralPath, [switch]$Recurse, [switch]$Force, [st
     $script:Events.Add('cleanup')
 }
 foreach ($case in 'success', 'already-exited', 'installer-cancelled', 'parent-timeout') {
-    $script:Events = [Collections.Generic.List[string]]::new()
-    $script:Alerts = [Collections.Generic.List[string]]::new()
-    $script:ParentPresent = $case -ne 'already-exited'
-    $script:WaitFails = $case -eq 'parent-timeout'
-    $script:InstallerExitCode = if ($case -eq 'installer-cancelled') { 1 } else { 0 }
-    & ([scriptblock]::Create($helper)) -ParentId 12345 -Package $script:Package -Application $script:Application
-    Assert ($script:Events.Contains('cleanup')) "$case did not clean up"
-    if ($case -eq 'success' -or $case -eq 'already-exited') {
-        Assert ($script:Events.Contains('launch') -and $script:Alerts.Count -eq 0) "$case failed to restart"
-    } else {
-        Assert (!$script:Events.Contains('launch') -and $script:Alerts.Count -eq 1) "$case did not report failure"
+    foreach ($customProfile in $false, $true) {
+        $script:DataDirectory = if ($customProfile) { 'C:\Bambu profile [saved] '' $ é 漢\' } else { '' }
+        $script:ExpectedArguments = if ($customProfile) { '--datadir "C:\Bambu profile [saved] '' $ é 漢\\"' } else { '' }
+        $script:Events = [Collections.Generic.List[string]]::new()
+        $script:Alerts = [Collections.Generic.List[string]]::new()
+        $script:ParentPresent = $case -ne 'already-exited'
+        $script:WaitFails = $case -eq 'parent-timeout'
+        $script:InstallerExitCode = if ($case -eq 'installer-cancelled') { 1 } else { 0 }
+        & ([scriptblock]::Create($helper)) -ParentId 12345 -Package $script:Package -Application $script:Application -DataDirectory $script:DataDirectory
+        Assert ($script:Events.Contains('cleanup')) "$case did not clean up"
+        if ($case -eq 'success' -or $case -eq 'already-exited') {
+            Assert ($script:Events.Contains('launch') -and $script:Alerts.Count -eq 0) "$case failed to restart"
+        } else {
+            Assert (!$script:Events.Contains('launch') -and $script:Alerts.Count -eq 1) "$case did not report failure"
+        }
+        if ($case -eq 'parent-timeout') { Assert (!$script:Events.Contains('install')) 'Installed while app was running' }
     }
-    if ($case -eq 'parent-timeout') { Assert (!$script:Events.Contains('install')) 'Installed while app was running' }
 }
-Write-Output 'Windows helper: syntax and 4 process/installer scenarios passed.'
+Write-Output 'Windows helper: syntax and 8 process/installer scenarios passed.'

@@ -29,6 +29,8 @@ Cancelling a save keeps the app open. Deferred web-project saves keep the update
 request until the save completes. Rechecking with an update ready offers the
 installation/restart again without downloading it twice. Save your project
 before restarting; the updater does not reopen unsaved work automatically.
+All three platforms relaunch with the current data directory, preserving a
+custom `--datadir` profile.
 
 On Linux the replacement is installed immediately and **Restart now** is
 optional. Other platforms install only after choosing to close and install.
@@ -122,9 +124,10 @@ ctest --test-dir build/application-updater-tests -C Debug --output-on-failure
 ```
 
 `tests/application_updater/windows_helper_tests.ps1` parses the actual helper
-source and runs four scenarios with mocked process/installer commands and a
+source and runs eight scenarios with mocked process/installer commands and a
 headless alert: normal install, already-exited parent, cancelled installer, and
-parent timeout. It also checks literal paths, the fixed installation directory,
+parent timeout, each with and without a custom profile. It also checks literal
+paths, the fixed installation directory,
 cleanup, and restart ordering. It runs with PowerShell 7 on Linux or Windows;
 Windows PowerShell 5.1 has also been exercised in the native VM; real UAC on an unelevated desktop still requires verification.
 
@@ -159,7 +162,7 @@ replace native GUI/installer testing.
 Crossplat testing on 2026-10-25 passed 42 portable and 144 Linux assertions on
 each of Ubuntu 24/26, Fedora, Mint's package environment, Debian, openSUSE, Arch,
 and Alpine. Native Windows and Mac builds of the portable suite passed all 42
-assertions. The native Mac DMG/helper suite passed 31 assertions; real Windows
+assertions. The native Mac DMG/helper suite passed 32 assertions; real Windows
 NSIS installation/relaunch and cancellation passed. Native HTTPS downloads on
 both Windows and Mac verified a 229,153,272-byte public release payload.
 

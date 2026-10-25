@@ -18,8 +18,8 @@ No public fork releases were created or installed over a personal application.
 | openSUSE Tumbleweed | 42 + 144 assertions | Main window rendered under Xvfb, screenshot inspected. |
 | Arch rolling | 42 + 144 assertions | Main window rendered under Xvfb, screenshot inspected. |
 | Alpine 3.24 / musl | 42 + 144 assertions | Official glibc AppImage is not a supported native package here. |
-| Windows 11 x64 | Native MSVC and MinGW builds: 42 assertions each; PowerShell 5.1 helper scenarios; real NSIS install and cancellation | Full Visual Studio 2022 application build in progress. |
-| macOS 27.0.1 / Apple Silicon | Native AppleClang: 42 assertions; 31 native DMG/helper assertions | Full arm64 application build and visible native window pass with a disposable profile. |
+| Windows 11 x64 | Native MSVC and MinGW builds: 42 assertions each; 8 PowerShell 5.1 helper scenarios; real NSIS install and cancellation | Full Visual Studio 2022 application build in progress. |
+| macOS 27.0.1 / Apple Silicon | Native AppleClang: 42 assertions; 32 native DMG/helper assertions | Full arm64 application build and visible native window pass with a disposable profile. |
 
 Linux containers share the host kernel. GUI checks use Xvfb and software OpenGL;
 they do not validate a complete distro desktop, Wayland, physical GPUs, printer
@@ -41,7 +41,7 @@ app fixtures, packages real DMGs, and invokes production preparation/helper code
 It checks read-only mounting, native codesign/lipo/ditto/stat, detachment,
 replacement, backup rotation, changed-install and symlink rejection, rollback,
 invalid signatures, incompatible CPU architecture, read-only installations, and
-actual LaunchServices relaunch. Only failure-alert dialogs are suppressed; rollback
+actual LaunchServices relaunch with the exact custom profile arguments. Only failure-alert dialogs are suppressed; rollback
 injects a failing second rename. No personal installed app is modified.
 
 `tests/application_updater/windows_native_tests.ps1` uses the production helper
@@ -49,7 +49,9 @@ and NSIS packaging script with a tiny Windows program. It checks parent-process
 waiting, fixed installation directory, real installer pages, version replacement,
 package cleanup and updated-program relaunch. `-CancelInstaller` checks real
 installer cancellation, preserved files, the failure dialog, cleanup and no
-relaunch. Paths include spaces, brackets, apostrophes, `$`, `é` and `漢`. The VM's
+relaunch. The launched fixture records and verifies the actual custom profile
+arguments, including a trailing backslash. Paths include spaces, brackets,
+apostrophes, `$`, `é` and `漢`. The VM's
 SSH account is already elevated: these tests do **not** establish UAC behavior on
 a normal unelevated desktop.
 
@@ -86,7 +88,9 @@ Relaunch exposed loss of a custom `--datadir` argument, causing a fresh profile
 and setup wizard. Linux restart now passes the current data directory as a literal
 argument. Its regression test verifies paths containing spaces, apostrophes,
 Unicode, and shell substitution text. The rebuilt AppImage passes the actual
-custom-profile restart regression. A second issue found on the physical Mac
+custom-profile restart regression. Windows and macOS helpers now preserve the
+same current data directory; native fixtures verify their actual relaunch argv.
+A second issue found on the physical Mac
 was DMG packaging's multi-architecture `lipo -verify_arch` invocation; packaging
 now verifies each architecture separately.
 
@@ -167,13 +171,19 @@ Raw crossplat logs are retained under `/mnt/gamesDrive/crossplat/logs`:
 - Ubuntu 26 upstream baseline: `20261025-131338-ubuntu-bambu-upstream-baseline-1599958.log`.
 - Ubuntu 26 font-map probe: `20261025-131834-ubuntu-bambu-font-probe-1605543.log`.
 - Final Linux components: `20261025-124453-matrix-*.log` and `20261025-124537-matrix-*.log`.
+- Latest helper simulation regression, all eight Linux targets: `20261025-141559-matrix-*.log` and `20261025-142025-matrix-*.log` (42 portable + 144 Linux assertions each).
 - Mac native suite: `20261025-124638-mac-bambu-updater-1577114.log`.
+- Mac final-source incremental build/startup: `20261025-135638-mac-bambu-updater-full-1645397.log`.
+- Mac custom-profile native suite (42 portable + 32 native): `20261025-141148-mac-bambu-updater-1656682.log`.
+- Mac custom-profile source rebuild/startup: `20261025-141316-mac-bambu-updater-full-1658108.log`.
 - Mac full build: `20261025-095108-mac-bambu-updater-full-1434967.log`.
 - Mac visible-window startup: `20261025-125742-mac-bambu-updater-full-1586291.log`.
 - Windows MSVC build/transport: `20261025-131128-win11-bambu-updater-1598065.log`.
+- Windows MSVC helper-source recompile and 42 assertions: `20261025-141921-win11-bambu-updater-1669671.log` (remote source timestamps refreshed to avoid host/guest clock skew).
 - Windows fresh MinGW build/transport: `20261025-125535-win11-bambu-updater-1584453.log`.
 - Windows real NSIS success: `20261025-124625-win11-bambu-updater-1576995.log`.
 - Windows real NSIS cancellation: `20261025-124433-win11-bambu-updater-1573354.log`.
+- Windows custom-profile helper/real NSIS success and cancellation: `20261025-141203-win11-bambu-updater-1656773.log`.
 - Ubuntu final save/geometry/profile restart: `20261025-133844-ubuntu24-bambu-updater-1630444.log`.
 - Ubuntu final replacement/backup: `20261025-133234-ubuntu24-bambu-updater-1623365.log`.
 - Ubuntu GUI replacement/backup: `20261025-123418-ubuntu24-bambu-updater-1560082.log`.

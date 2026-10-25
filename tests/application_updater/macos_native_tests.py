@@ -27,8 +27,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix="bambu native ' $ é ") as temporary:
         root = Path(temporary)
         marker = root / 'launched.txt'
+        profile = root / "profile [saved] ' $ é 漢"
+        profile.mkdir()
         source = root / 'fixture.c'
-        source.write_text('#include <stdio.h>\nint main(void) { FILE *f = fopen(' + json.dumps(str(marker)) + ', "w"); if (!f) return 2; fputs("launched", f); return fclose(f); }\n')
+        source.write_text('#include <stdio.h>\nint main(int argc, char **argv) { FILE *f = fopen(' + json.dumps(str(marker)) + ', "w"); if (!f) return 2; fputs("launched", f); for (int i=1; i<argc; ++i) { fputc(10, f); fputs(argv[i], f); } return fclose(f); }\n')
         seed = root / 'seed/BambuStudio.app'
         (seed / 'Contents/MacOS').mkdir(parents=True)
         (seed / 'Contents/Resources').mkdir()
@@ -84,7 +86,7 @@ def main():
             elif scenario == 'rollback':
                 # Fault injection at the second rename exercises the native rollback.
                 active_helper = helper.replace('/bin/mv "$stage/new.app" "$app"', '/usr/bin/false')
-            result = run('/bin/sh', '-c', active_helper, 'bambu-native-test', '999999999', app, directory, ok=False)
+            result = run('/bin/sh', '-c', active_helper, 'bambu-native-test', '999999999', app, directory, profile, ok=False)
             expected = scenario == 'success'
             check((result.returncode == 0) == expected, f'{scenario}: {result.stderr}')
             check((app / 'Contents/Resources/version').read_text() == ('new' if expected else 'old'), scenario + ': installation changed incorrectly')
@@ -96,7 +98,8 @@ def main():
                     if marker.exists():
                         break
                     time.sleep(.1)
-                check(marker.read_text() == 'launched', 'LaunchServices did not launch replacement')
+                check(marker.read_text().splitlines()[0] == 'launched', 'LaunchServices did not launch replacement')
+                check(marker.read_text().splitlines()[1:] == ['--datadir', str(profile)], 'LaunchServices lost or changed the custom data directory')
             elif scenario == 'rollback':
                 check((backup / 'Contents/Resources/version').read_text() == 'older', 'Older backup not restored')
             print('PASS native macOS ' + scenario)

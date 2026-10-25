@@ -325,7 +325,13 @@ TEST_CASE("macOS replacement helper rotates backups, detects changed installs an
     SECTION("Replacement fails after moving old app") { restore = true; succeeds = false; }
     auto script = std::string(mac_install_script());
     const auto replace = [&](const std::string &from, const std::string &to) {
-        const auto pos = script.find(from); REQUIRE(pos != std::string::npos); script.replace(pos, from.size(), to);
+        auto pos = script.find(from);
+        REQUIRE(pos != std::string::npos);
+        // Both optional-profile launch branches use the same native tool.
+        while (pos != std::string::npos) {
+            script.replace(pos, from.size(), to);
+            pos = script.find(from, pos + to.size());
+        }
     };
     // Run the real transaction on Linux; replace only macOS-specific tools.
     replace("/usr/bin/stat -f '%d:%i:%m'", "stat -c '%d:%i:%Y'");
