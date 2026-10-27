@@ -5,6 +5,29 @@ Apple Silicon Mac, and persistent Linux containers. Results below distinguish
 component tests, real platform installers, and complete application GUI checks.
 No public fork releases were created or installed over a personal application.
 
+## Upstream proposal preparation — 2026-10-26
+
+The upstream proposal changes only the updater's default configuration and
+documentation from the tested fork implementation: the repository is empty by
+default, so `check_application_update()` returns false and the existing update
+check continues. Release maintainers must opt in with a trusted repository and
+compatible assets; no personal fork is selected by default. The 2026-10-25 GUI
+results below used an enabled updater and remain historical runtime evidence.
+
+A fresh Ubuntu 24.04 component build passes 42 portable assertions and 144 Linux
+assertions using the CMake/build/CTest commands in `application-updater.md`.
+An isolated CMake project evaluated the actual updater configuration block with
+both default settings and an explicit `bambulab/BambuStudio` repository; the
+generated definitions contain an empty repository by default and the configured
+repository when enabled. This does not build the complete application.
+
+The `xp run ubuntu24 -p bambu-upstream-pr-20261026` run exited 0 in 23 seconds.
+Log: `/mnt/gamesDrive/crossplat/logs/20261026-210536-ubuntu24-bambu-upstream-pr-20261026-3042663.log`.
+The exact command and environment are recorded in
+`/tmp/bambu-upstream-pr-20261026-result.json` on the controller.
+Windows, macOS and the other Linux targets were not rerun for this configuration
+and documentation change; their earlier results and caveats follow.
+
 ## Results
 
 | Environment | Updater components | Complete application |

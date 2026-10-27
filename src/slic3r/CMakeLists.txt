@@ -772,7 +772,9 @@ list(APPEND SLIC3R_GUI_SOURCES GUI/AppUpdate.cpp Utils/ReleaseUpdater.cpp Utils/
     Utils/DesktopUpdater.cpp Utils/DesktopUpdater.hpp)
 add_library(libslic3r_gui STATIC ${SLIC3R_GUI_SOURCES})
 
-set(_update_repository "kyllan16693/BambuStudio")
+# Release maintainers opt in after configuring compatible packages and digests.
+# An empty repository preserves the existing update check and download flow.
+set(_update_repository "")
 if (WIN32)
     if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(_update_repository "")

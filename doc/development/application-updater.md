@@ -1,13 +1,18 @@
-# In-app updates for this fork
+# In-app updates
 
-The fork downloads and verifies updates inside Bambu Studio on Windows, macOS,
-and Linux. The first fork build must be installed manually once. Subsequent
-updates come from public GitHub releases in `kyllan16693/BambuStudio`; official
-Bambu binaries would remove the feature. No fork releases are published by the
-build or test scripts.
+The optional updater downloads and verifies updates inside Bambu Studio on
+Windows, macOS, and Linux. It is disabled by default: an empty
+`BAMBUSTUDIO_UPDATE_REPOSITORY` preserves the existing update check and browser
+download flow. Release maintainers must configure a trusted GitHub repository
+and compatible packages before enabling it. The build and test scripts do not
+publish releases or select a personal fork as the update source.
 
-The existing startup check and **Check for updates** open the release dialog
-with **Install update**. Downloads stream to disk on a worker thread with
+Users must manually install the first build that enables the updater. Subsequent
+updates come from the configured repository. Packages in that channel must also
+contain the updater and preserve its configuration.
+
+When enabled, the existing startup check and **Check for updates** open the
+release dialog with **Install update**. Downloads stream to disk on a worker thread with
 progress and cancellation. Stable releases are the default; the existing beta
 preference includes prereleases. Before use, every package must match the exact
 configured asset name and repository URL, its expected byte count, and the
@@ -88,6 +93,12 @@ current directory during updates (`/UPDATE /D=...`); initial installation offers
 a directory picker. Build/package **one** ARM64 variant per release; ARM64 and
 ARM64EC share the ARM64 asset channel and must not contain incompatible binaries.
 
+The NSIS script is a standalone reference installer with separate fork branding
+and registration. It does not integrate with the official Windows installer.
+Release maintainers must adapt their production installer to support the
+helper's `/UPDATE /D=<installation-directory>` invocation before enabling that
+channel.
+
 For macOS, `./BuildMac.sh -s -x -a universal -t 10.15 -1` builds a universal bundle
 once the upstream dependencies exist. Sign the finished bundle, including its
 nested executables/libraries, with your release identity, then run:
@@ -96,21 +107,28 @@ nested executables/libraries, with your release identity, then run:
 packaging/updates/macos-dmg.sh build/BambuStudio/BambuStudio.app "$PWD/BambuStudio_macos-universal.dmg"
 ```
 
-The script requires a valid signature and both architectures. For local testing,
+The provided DMG script is also a reference packaging path; it does not
+replace the release signing or notarization pipeline.
+
+The DMG script requires a valid signature and both architectures. For local testing,
 a correctly applied ad-hoc signature can pass verification; distribution should
 use Developer ID signing and notarization/stapling to avoid Gatekeeper friction.
 The updater verifies signature integrity; it does not pin a developer team ID.
 It trusts the bytes selected by the configured GitHub repository.
 
-Use these CMake cache entries for another fork or asset:
+Enable the updater explicitly with these CMake cache entries:
 
 ```
 -DBAMBUSTUDIO_UPDATE_REPOSITORY=owner/repository
 -DBAMBUSTUDIO_UPDATE_ASSET=<exact-platform-asset>
 ```
 
-An empty repository disables the feature. Do not point a fork build at releases
-that lack the updater.
+An empty repository disables the feature. For an upstream release, the repository
+must be `bambulab/BambuStudio`; a fork must use its own trusted repository. The
+asset names in the table are the reference packaging contract, not a claim that
+the existing official release assets follow it. Before enabling a channel,
+configure its exact asset name, publish compatible packages with GitHub SHA-256
+digests, and verify the complete update from an installed previous build.
 
 ## Tests and CI
 
@@ -143,11 +161,11 @@ ctest --test-dir build/updater-tests --output-on-failure
 ```
 
 `doc/development/application-updater-workflow.yml` is an inert cross-platform
-CI template. Copy it to `.github/workflows/application-updater.yml` using GitHub
-credentials with workflow permission to activate it. The existing Linux full
-AppImage build template remains at `appimage-updater-workflow.yml`. Neither
-publishes releases. This account's current GitHub credentials can push source
-but cannot change active workflows.
+CI template. Copy it to `.github/workflows/application-updater.yml` and adapt its
+branch triggers to activate it. The existing Linux full AppImage build template
+remains at `appimage-updater-workflow.yml`. Neither publishes releases. The
+AppImage template produces an artifact with the updater disabled unless the
+build is explicitly configured with a trusted update repository.
 
 Before distributing, test the complete GUI update on each native OS: successful
 installation and launch, download cancellation, offline/rate-limited checks,
