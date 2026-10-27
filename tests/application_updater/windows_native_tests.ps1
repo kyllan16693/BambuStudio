@@ -1,19 +1,13 @@
 ﻿param([string]$Repository = (Join-Path $PSScriptRoot '../..'), [switch]$CancelInstaller)
 $ErrorActionPreference = 'Stop'
 $repositoryPath = (Resolve-Path $Repository).Path
-$registrationKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BambuStudioUpdaterFork'
-if (Test-Path $registrationKey) { throw 'Run in a disposable VM without an existing updater-fork installation' }
-foreach ($folder in 'CommonPrograms', 'Programs') {
- if (Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath($folder)) 'Bambu Studio Updater.lnk')) {
-  throw 'Existing updater-fork shortcut must be preserved; use a clean test VM'
- }
-}
 $root = Join-Path ([IO.Path]::GetTempPath()) ('bambu-native-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory $root | Out-Null
 $fixture = Join-Path $root 'fixture'
 $install = Join-Path $root "Bambu [Studio] ' `$ é 漢"
 $stage = Join-Path $root "stage [verified] ' `$ é 漢"
 New-Item -ItemType Directory $fixture,$install,$stage | Out-Null
+Set-Content -LiteralPath (Join-Path $install '.bambu-updater-fixture') -Value fixture
 $dataDirectory = (Join-Path $root "profile [saved] ' `$ é 漢") + '\'
 [IO.Directory]::CreateDirectory($dataDirectory) | Out-Null
 $events = [Collections.Generic.List[string]]::new()
@@ -48,8 +42,17 @@ Copy-Item -LiteralPath $exe -Destination (Join-Path $install 'bambu-studio.exe')
 Set-Content -LiteralPath (Join-Path $install 'version.txt') -Value old -Encoding UTF8
 $package = Join-Path $stage 'update.exe'
 $makensis = 'C:\msys64\ucrt64\bin\makensis.exe'
-& $makensis "/DAPPDIR=$fixture" "/DOUTFILE=$package" (Join-Path $repositoryPath 'packaging/updates/windows.nsi')
+& $makensis "/DAPPDIR=$fixture" "/DOUTFILE=$package" (Join-Path $repositoryPath 'tests/application_updater/fixtures/windows.nsi')
 Assert ($LASTEXITCODE -eq 0) 'Native NSIS packaging failed'
+$unmarked = Join-Path $root 'unmarked destination'
+New-Item -ItemType Directory $unmarked | Out-Null
+$refused = Start-Process -FilePath $package -ArgumentList ('/S /UPDATE /D=' + $unmarked) -Wait -PassThru
+Assert ($refused.ExitCode -eq 2) 'Fixture installer accepted an unmarked destination'
+Assert (!(Test-Path -LiteralPath (Join-Path $unmarked 'bambu-studio.exe'))) 'Refused installation wrote application files'
+$refused = Start-Process -FilePath $package -ArgumentList ('/S /D=' + $install) -Wait -PassThru
+Assert ($refused.ExitCode -eq 2) 'Fixture installer accepted a command without /UPDATE'
+Assert ((Get-Content -LiteralPath (Join-Path $install 'version.txt') -Raw).Trim() -eq 'old') 'Refused installation changed existing files'
+Write-Output 'PASS fixture installer refuses unmarked destinations and commands without /UPDATE'
 $source = [IO.File]::ReadAllText((Join-Path $repositoryPath 'src/slic3r/Utils/DesktopUpdater.cpp'))
 $helper = [regex]::Match($source, 'R"PS\(([\s\S]*?)\)PS"').Groups[1].Value
 $helperFile = Join-Path $stage 'install.ps1'
@@ -66,7 +69,7 @@ try {
  Start-Sleep -Milliseconds 500
  $parent.Refresh()
  Assert (!$parent.HasExited) 'Fixture parent exited before the wait check'
- Assert ([BambuNativeWindows]::Find('Bambu Studio Updater Fork') -eq [IntPtr]::Zero) 'Installer launched while the parent was still running'
+ Assert ([BambuNativeWindows]::Find('Bambu Studio update test fixture') -eq [IntPtr]::Zero) 'Installer launched while the parent was still running'
  $deadline = [DateTime]::UtcNow.AddSeconds(90)
  do {
   $failure = [BambuNativeWindows]::Find('Bambu Studio update failed')
@@ -75,7 +78,7 @@ try {
    $failureShown = $true
    if (!$CancelInstaller) { throw 'The production helper displayed its failure dialog' }
   }
-  $window = [BambuNativeWindows]::Find('Bambu Studio Updater Fork')
+  $window = [BambuNativeWindows]::Find('Bambu Studio update test fixture')
   if ($window -ne [IntPtr]::Zero) {
    $id = if ($CancelInstaller) { 2 } else { 1 }
    # NSIS cancellation can open a confirmation dialog with an IDYES button.
@@ -108,13 +111,5 @@ try {
  Write-Output ('PASS native Windows NSIS install, parent wait, Unicode/spaced paths, cleanup, custom profile and relaunch. Buttons: ' + ($events -join ', '))
 } finally {
  if (!$process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
- # Remove only this fixture's registration, after checking the uninstaller path.
- $key = $registrationKey
- $registration = Get-ItemProperty $key -ErrorAction SilentlyContinue
- if ($registration -and $registration.UninstallString.Contains($root)) {
-  Remove-Item $key -Recurse -Force
-  Remove-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Bambu Studio Updater.lnk') -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath('Programs')) 'Bambu Studio Updater.lnk') -Force -ErrorAction SilentlyContinue
- }
  Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }

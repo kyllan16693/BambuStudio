@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--certificate', required=True, type=Path)
     parser.add_argument('--key', required=True, type=Path)
     parser.add_argument('--mode-file', required=True, type=Path)
-    parser.add_argument('--repository', default='kyllan16693/BambuStudio')
+    parser.add_argument('--repository', required=True, help='Repository configured in the test build')
     parser.add_argument('--version', default='02.09.00.01')
     parser.add_argument('--port', type=int, default=443)
     options = parser.parse_args()

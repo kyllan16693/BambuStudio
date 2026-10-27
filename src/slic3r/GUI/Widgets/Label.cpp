@@ -7,10 +7,6 @@
 
 #include <wx/dcclient.h>
 #include <wx/settings.h>
-#ifdef __linux__
-#include <pango/pangocairo.h>
-#include <pango/pangofc-fontmap.h>
-#endif
 
 wxFont Label::sysFont(int size, bool bold, std::string lang_code)
 {
@@ -87,12 +83,6 @@ void Label::initSysFont(std::string lang_code, bool load_font_resource)
         font_path = wxString::FromUTF8(resource_path + "/fonts/NanumGothic-Bold.ttf");
         result    = wxFont::AddPrivateFont(font_path);
         BOOST_LOG_TRIVIAL(info) << boost::format("add font of NanumGothic-Bold returns %1%")%result;
-        // wx reuses the same FcConfig for each private font. Refresh Pango's
-        // family cache after registering all fonts: newer Pango otherwise can
-        // match a newly added face whose family is absent from its cached map.
-        PangoFontMap *font_map = pango_cairo_font_map_get_default();
-        if (PANGO_IS_FC_FONT_MAP(font_map))
-            pango_fc_font_map_config_changed(PANGO_FC_FONT_MAP(font_map));
     }
 #endif
     Head_48 = Label::sysFont(48, true, lang_code);

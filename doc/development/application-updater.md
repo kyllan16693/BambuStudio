@@ -76,28 +76,14 @@ cp build/BambuStudio_ubu64.AppImage build/BambuStudio_linux-x86_64.AppImage
 ```
 
 For Windows, build the appropriate x64 or ARM64EC CMake configuration and its
-`install` target, then package the resulting complete `install-dir` tree with
-NSIS 3. Use absolute paths (PowerShell example):
+`install` target. Integrate the helper's `/UPDATE /D=<installation-directory>`
+contract into the official installer before enabling the Windows channel. See
+[Windows installer integration](../../packaging/updates/windows-installer.md)
+for exit codes, installation ownership, stale files, and signing requirements.
+There is no production Windows installer in this change.
 
-```powershell
-& 'C:\Program Files (x86)\NSIS\makensis.exe' `
-  "/DAPPDIR=$PWD\install-dir" "/DOUTFILE=$PWD\BambuStudio_windows-x86_64.exe" `
-  packaging/updates/windows.nsi
-```
-
-Sign the resulting installer with your release Authenticode certificate if
-available. Without one, Windows can show an unknown-publisher warning. The
-installer installs the entire app tree and registers a separate fork uninstaller;
-it does not modify slicer preferences stored in the user profile. It uses the
-current directory during updates (`/UPDATE /D=...`); initial installation offers
-a directory picker. Build/package **one** ARM64 variant per release; ARM64 and
-ARM64EC share the ARM64 asset channel and must not contain incompatible binaries.
-
-The NSIS script is a standalone reference installer with separate fork branding
-and registration. It does not integrate with the official Windows installer.
-Release maintainers must adapt their production installer to support the
-helper's `/UPDATE /D=<installation-directory>` invocation before enabling that
-channel.
+Build/package one ARM64 variant per release; ARM64 and ARM64EC share the ARM64
+asset channel and must not contain incompatible binaries.
 
 For macOS, `./BuildMac.sh -s -x -a universal -t 10.15 -1` builds a universal bundle
 once the upstream dependencies exist. Sign the finished bundle, including its
@@ -175,26 +161,35 @@ test mounted-image rejection, Intel/Apple silicon, signature failure, backup
 rotation, and rollback. Portable tests and Linux shell transaction tests do not
 replace native GUI/installer testing.
 
-## Current validation result
+## Validation and rollout
 
-Crossplat testing on 2026-10-25 passed 42 portable and 144 Linux assertions on
-each of Ubuntu 24/26, Fedora, Mint's package environment, Debian, openSUSE, Arch,
-and Alpine. Native Windows and Mac builds of the portable suite passed all 42
-assertions. The native Mac DMG/helper suite passed 32 assertions; real Windows
-NSIS installation/relaunch and cancellation passed. Native HTTPS downloads on
-both Windows and Mac verified a 229,153,272-byte public release payload.
+Component, native installer-fixture and application startup results are recorded
+in the upstream [validation report](https://github.com/bambulab/BambuStudio/pull/12789#issuecomment-6431342786).
+The Windows NSIS fixture lives under
+`tests/application_updater/fixtures`; it requires a marker in a disposable test
+directory and never creates an uninstaller, shortcuts, or registry entries. It
+runs without elevation and does not test UAC or the official installer.
 
-The full Mac application built and opened a visible native window with an
-isolated profile. The full Windows x64 application built, installed, and opened
-its main window in the test VM using Mesa software rendering. Final Linux GUI
-tests reached the main window on Ubuntu 22/24/26, Fedora,
-Mint, Debian, openSUSE, and Arch. Ubuntu 26 testing found and fixed a stale
-private-font-family cache in Pango initialization. Ubuntu
-24's actual GUI exercised HTTPS failure, corruption rejection, cancellation,
-replacement, backup, save cancellation, deferral, recheck, and relaunch. That
-relaunch found loss of a custom data directory, now fixed and verified through
-a complete GUI save/update/restart with the original profile and a valid saved 3MF.
+Before enabling production releases, resolve these items:
 
-See [crossplat-validation.md](crossplat-validation.md) for exact evidence,
-reproduction commands, environment caveats, full-build status, and outstanding
-native GUI/distribution checks. No public fork release has been published.
+- Agree on stable release asset names and integrate the official Windows
+  installer. The reference asset names do not match current official releases.
+- Recheck the Windows package at execution time and verify its expected signer.
+  Require the expected developer Team ID on macOS. A GitHub digest alone trusts
+  the configured repository, and the current macOS check verifies integrity only.
+- Define recovery after installer cancellation/failure and helper timeouts.
+  The current helper may leave the app closed; Windows discards the package.
+- Preserve required legacy update policies when enabling the new check. The new
+  path bypasses forced-update and cloud-download policies and skips only an exact
+  skipped version.
+- Enforce supported platforms after reading CMake cache overrides, and prevent a
+  second Linux instance from overwriting the rollback copy after another instance
+  has replaced the AppImage.
+- Bound macOS preparation commands and make their cancellation interruptible.
+  Test slow downloads, explicit Linux CA setup, and malformed release metadata.
+- Cover the GUI close/veto and deferred-save paths, helper arguments, reentrant
+  checks, and failure recovery in automated tests. Activate the CI templates.
+- Complete native Windows/macOS GUI update/save tests, ordinary unelevated UAC,
+  signing/notarization/Gatekeeper, Windows ARM64, Intel Mac execution, older macOS
+  compatibility, and hardware graphics tests. Fixture tests and app startup do
+  not establish production release compatibility.

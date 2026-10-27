@@ -57,4 +57,4 @@ jobs:
           ctest --test-dir build/linux --output-on-failure
           mkdir -p /tmp/installer-fixture
           echo fixture > /tmp/installer-fixture/bambu-studio.exe
-          makensis -DAPPDIR=/tmp/installer-fixture -DOUTFILE=/tmp/installer-fixture.exe packaging/updates/windows.nsi
+          makensis -DAPPDIR=/tmp/installer-fixture -DOUTFILE=/tmp/installer-fixture.exe tests/application_updater/fixtures/windows.nsi
